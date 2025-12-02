@@ -1,11 +1,8 @@
 -module(day2).
--export([p1/0]).
+-export([p1/0, p2/0, is_repeating/2]).
 
 p1() ->
-    FileName = "input/2.txt",
-    FileOutput = lists:nth(1, util:read_file(FileName)),
-    Ranges = string:tokens(FileOutput, ","),
-
+    Ranges = get_ranges(),
     GetInvalidIdsFn = fun get_invalid_ids/2,
     InvalidIds = lists:merge(lists:foldl(
         GetInvalidIdsFn,
@@ -15,6 +12,11 @@ p1() ->
 
     Sum = lists:foldl(fun(X, Sum) -> X + Sum end, 0, InvalidIds),
     erlang:display(Sum).
+
+get_ranges() ->
+    FileName = "input/2.txt",
+    FileOutput = lists:nth(1, util:read_file(FileName)),
+    string:tokens(FileOutput, ",").
 
 get_invalid_ids(Range, Acc) ->
     % Range Str is always of the form "X-Y" where X and Y are integers
@@ -53,3 +55,30 @@ invalid_checker(Num, StrLen, Acc) when StrLen rem 2 == 0 ->
     %io:format("Num: ~p, FirstHalf: ~p, SecondHalf: ~p, Ret: ~p~n", [Num, FirstHalf, SecondHalf, Ret]),
     Ret;
 invalid_checker(_, StrLen, Acc) when StrLen rem 2 == 1-> Acc.
+
+p2() -> 
+    %Ranges = get_ranges().
+    is_repeating("824824824", "82").
+
+% Pattern must be a valid prefix of the string.
+is_repeating(String, Pattern) ->
+    PatternLen = length(Pattern),
+    Suffix = string:slice(String, PatternLen),
+
+    SubstringsOfPatternLength = split_by_n(Suffix, PatternLen),
+    lists:all(fun(S) -> S == Pattern end, SubstringsOfPatternLength).
+    
+split_by_n(String, N) -> split_helper(String, N, []).
+
+split_helper([], _, Acc) -> lists:reverse(Acc);
+
+split_helper(String, N, Acc) when N > length(String) -> 
+    NewAcc = [String|Acc],
+    split_helper([], N, NewAcc);
+
+split_helper(String, N, Acc) when N =< length(String) -> 
+    NewAcc = [string:slice(String, 0, N) | Acc],
+    NewStr = string:slice(String, N),
+    split_helper(NewStr, N, NewAcc).
+
+
