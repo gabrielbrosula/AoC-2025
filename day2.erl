@@ -1,9 +1,9 @@
 -module(day2).
--export([p1/0, p2/0, is_repeating/2]).
+-export([p1/0, p2/0, get_invalid_p2/2, is_invalid_p2/2, build_patterns/1, check_patterns/2, is_repeating_from_pattern/2]).
 
 p1() ->
     Ranges = get_ranges(),
-    GetInvalidIdsFn = fun get_invalid_ids/2,
+    GetInvalidIdsFn = fun get_invalid_p1/2,
     InvalidIds = lists:merge(lists:foldl(
         GetInvalidIdsFn,
         [],
@@ -18,15 +18,15 @@ get_ranges() ->
     FileOutput = lists:nth(1, util:read_file(FileName)),
     string:tokens(FileOutput, ",").
 
-get_invalid_ids(Range, Acc) ->
+get_invalid_p1(Range, Acc) ->
     % Range Str is always of the form "X-Y" where X and Y are integers
     [LowStr, HighStr] = string:tokens(Range, "-"),
     [Low, High] = [list_to_integer(X) || X <:- [LowStr, HighStr]],
     Seq = lists:seq(Low, High),
 
-    GetInvalidIdsFn = fun is_invalid_id/2,
+    IsInvalidFn = fun is_invalid_p1/2,
     ResultFromSeq = lists:foldl(
-        GetInvalidIdsFn,
+        IsInvalidFn,
         [],
         Seq
     ),
@@ -35,7 +35,7 @@ get_invalid_ids(Range, Acc) ->
     %io:format("Invalid Ids in get_invalid_ids fn~n"),
     %erlang:display(InvalidIds).
 
-is_invalid_id(Num, Acc) ->
+is_invalid_p1(Num, Acc) ->
     NumStr = integer_to_list(Num),
     StrLen = string:len(NumStr),
     Res = invalid_checker(Num, StrLen, Acc),
@@ -57,16 +57,76 @@ invalid_checker(Num, StrLen, Acc) when StrLen rem 2 == 0 ->
 invalid_checker(_, StrLen, Acc) when StrLen rem 2 == 1-> Acc.
 
 p2() -> 
-    %Ranges = get_ranges().
-    is_repeating("824824824", "82").
+    Ranges = get_ranges(),
+    GetInvalidIdsFn = fun get_invalid_p2/2,
+
+    InvalidIds = lists:merge(lists:foldl(
+        GetInvalidIdsFn,
+        [],
+        Ranges
+    )),
+
+    Sum = lists:foldl(fun(X, Sum) -> X + Sum end, 0, InvalidIds),
+    erlang:display(Sum).
+ 
+get_invalid_p2(Range, Acc) ->
+    % Range Str is always of the form "X-Y" where X and Y are integers
+    [LowStr, HighStr] = string:tokens(Range, "-"),
+    [Low, High] = [list_to_integer(X) || X <:- [LowStr, HighStr]],
+    Seq = lists:seq(Low, High),
+
+    IsInvalidFn = fun is_invalid_p2/2,
+    ResultFromSeq = lists:foldl(
+        IsInvalidFn,
+        [],
+        Seq
+    ),
+    
+    NewAcc = [ResultFromSeq|Acc],
+
+    %io:format("Invalid Ids in get_invalid_p2 fn~n"),
+    %io:format("~w~n", [ResultFromSeq]),
+
+    NewAcc.
+
+is_invalid_p2(Num, Acc) ->
+    NumStr = integer_to_list(Num),
+    Patterns = build_patterns(NumStr),
+    IsRepeating = check_patterns(NumStr, Patterns),
+
+    %io:format("IsRepeating(~p)? ~p~n", [Num, IsRepeating]),
+
+    case IsRepeating of
+        true -> [Num|Acc];
+        false -> Acc
+    end.
+
+
+% Build patterns
+% 824824824 should have the patterns list ["8", "82", "824", "8248"]
+% 121 should have the patterns list ["1"]
+build_patterns(NumStr) -> bp_helper(NumStr, 1, []).
+
+% TODO: Revisit the pattern builder
+bp_helper(NumStr, _, _) when length(NumStr) == 1 -> [false];
+bp_helper(NumStr, Idx, Acc) when Idx == length(NumStr) div 2 -> [string:slice(NumStr, 0, Idx)|Acc];
+bp_helper(NumStr, Idx, Acc) when Idx < length(NumStr) div 2 ->
+    NewAcc = [string:slice(NumStr, 0, Idx)|Acc],
+    bp_helper(NumStr, Idx + 1, NewAcc).
+
+check_patterns(NumStr, Patterns) ->
+    PatternCheckResults = [is_repeating_from_pattern(NumStr, P) || P <- Patterns, is_list(P)],
+    lists:any(fun(Res) -> Res == true end, PatternCheckResults).
 
 % Pattern must be a valid prefix of the string.
-is_repeating(String, Pattern) ->
+% TODO: Revisit the pattern checking
+is_repeating_from_pattern(NumStr, Pattern) ->
     PatternLen = length(Pattern),
-    Suffix = string:slice(String, PatternLen),
+    Suffix = string:slice(NumStr, PatternLen),
 
     SubstringsOfPatternLength = split_by_n(Suffix, PatternLen),
-    lists:all(fun(S) -> S == Pattern end, SubstringsOfPatternLength).
+    AllMatch = lists:all(fun(S) -> S == Pattern end, SubstringsOfPatternLength),
+    AllMatch andalso length(SubstringsOfPatternLength) >= 2.
     
 split_by_n(String, N) -> split_helper(String, N, []).
 
